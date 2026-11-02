@@ -304,18 +304,42 @@ window.addEventListener("focus",watchClip);
 watchClip();
 
 /* QR scanning */
-let stream=null;const vid=$("#vid"),cv=$("#cv"),cx=cv.getContext("2d",{willReadFrequently:true});
-function decode(w,h){const d=cx.getImageData(0,0,w,h);return window.jsQR?jsQR(d.data,w,h):null}
+let stream=null,busy=false;const vid=$("#vid"),cv=$("#cv"),cx=cv.getContext("2d",{willReadFrequently:true});
+const BD=window.BarcodeDetector?new BarcodeDetector({formats:["qr_code"]}):null;
+async function decodeSource(src,w,h,sizes){
+  if(BD){try{const r=await BD.detect(src);if(r.length&&r[0].rawValue)return r[0].rawValue}catch{}}
+  if(!window.jsQR)return null;
+  for(const max of sizes){
+    const k=Math.min(1,max/Math.max(w,h)),W=Math.round(w*k),H=Math.round(h*k),pad=Math.round(Math.max(W,H)*0.08);
+    cv.width=W+pad*2;cv.height=H+pad*2;
+    cx.fillStyle="#fff";cx.fillRect(0,0,cv.width,cv.height);
+    cx.drawImage(src,pad,pad,W,H);
+    const d=cx.getImageData(0,0,cv.width,cv.height),c=jsQR(d.data,cv.width,cv.height,{inversionAttempts:"attemptBoth"});
+    if(c&&c.data)return c.data;
+  }
+  return null;
+}
 function gotQR(t){stop();if(looksUrl(t)||/^https?:/i.test(t))run(t,"qr");else{show("check");toast("This QR code has no web link: "+t.slice(0,40))}}
 async function startScan(){
   try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});vid.srcObject=stream;await vid.play();$("#sheet").classList.add("on");tick()}
   catch{stream=null;$("#sheet").classList.add("on");toast("Camera not available. Upload a photo of the QR code instead.")}
 }
-function tick(){if(!stream)return;if(vid.readyState===4&&vid.videoWidth){cv.width=vid.videoWidth;cv.height=vid.videoHeight;cx.drawImage(vid,0,0);const c=decode(cv.width,cv.height);if(c&&c.data){gotQR(c.data);return}}requestAnimationFrame(tick)}
+async function tick(){
+  if(!stream)return;
+  if(!busy&&vid.readyState===4&&vid.videoWidth){busy=true;const t=await decodeSource(vid,vid.videoWidth,vid.videoHeight,[640]);busy=false;if(t&&stream){gotQR(t);return}}
+  requestAnimationFrame(tick);
+}
 function stop(){if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$("#sheet").classList.remove("on")}
 $("#scanBtn").onclick=startScan;$("#qrbox").onclick=startScan;$("#qrbox").onkeydown=e=>{if(e.key==="Enter"||e.key===" ")startScan()};
 $("#stop").onclick=stop;$("#upl").onclick=()=>$("#file").click();
-$("#file").onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{cv.width=img.width;cv.height=img.height;cx.drawImage(img,0,0);const c=decode(img.width,img.height);if(c&&c.data)gotQR(c.data);else toast("No QR code found in that image.")};img.src=URL.createObjectURL(f);e.target.value=""};
-</script>
+$("#file").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const img=new Image();
+  img.onload=async()=>{
+    const t=await decodeSource(img,img.naturalWidth,img.naturalHeight,[1000,600,1600,400]);URL.revokeObjectURL(img.src);
+    if(t)gotQR(t);else toast(window.jsQR||BD?"No QR code found. Try a sharper photo with the whole code and some blank space around it.":"QR reader failed to load. Check your internet and reload the page.");
+  };
+  img.onerror=()=>toast("Couldn’t open that image.");
+  img.src=URL.createObjectURL(f);e.target.value="";
+};
 </body>
 </html>
