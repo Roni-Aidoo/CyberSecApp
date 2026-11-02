@@ -4,6 +4,9 @@
   "type": "module",
   "private": true,
   "engines": { "node": ">=20.6" },
-  "scripts": { "start": "node --env-file=.env server.js" },
+ "scripts": {
+  "start": "node server.js",
+  "dev": "node --env-file=.env server.js"
+},
   "dependencies": { "express": "^4.19.2" }
 }
