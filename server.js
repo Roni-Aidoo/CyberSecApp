@@ -9,8 +9,8 @@ const { VT_API_KEY: VT_KEY, SB_API_KEY: SB_KEY, PORT = 3000 } = process.env;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const app = express();
 app.use(express.json({ limit: "10kb" }));
-   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-   app.use(express.static(path.join(__dirname, "public")));
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
+       app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 /* ---------- tiny rate limiter (per IP) + cache ---------- */
 const hits = new Map();
