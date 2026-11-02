@@ -88,7 +88,7 @@ nav .mid.safe{border-color:var(--ok)}nav .mid.caution{border-color:var(--warn)}n
 </head>
 <body>
 <div class="app">
-<header><h1>RoLinkfy</h1></header>
+<header><h1>Rolinkfy</h1></header>
 <main>
 <section class="view on" id="v-check">
   <div class="banner" id="banner"><div>Link copied<b id="clipTxt"></b></div><button id="clipGo">Verify</button><button class="x" id="clipX" aria-label="Dismiss">×</button></div>
@@ -304,10 +304,12 @@ window.addEventListener("focus",watchClip);
 watchClip();
 
 /* QR scanning */
-let stream=null,busy=false;const vid=$("#vid"),cv=$("#cv"),cx=cv.getContext("2d",{willReadFrequently:true});
-const BD=window.BarcodeDetector?new BarcodeDetector({formats:["qr_code"]}):null;
+window.addEventListener("error",e=>toast("Script error: "+e.message));
+let stream=null,busy=false,BD=null;
+try{if(window.BarcodeDetector)BD=new BarcodeDetector({formats:["qr_code"]})}catch(e){BD=null}
+const vid=$("#vid"),cv=$("#cv"),cx=cv.getContext("2d",{willReadFrequently:true});
 async function decodeSource(src,w,h,sizes){
-  if(BD){try{const r=await BD.detect(src);if(r.length&&r[0].rawValue)return r[0].rawValue}catch{}}
+  if(BD){try{const r=await BD.detect(src);if(r.length&&r[0].rawValue)return r[0].rawValue}catch(e){}}
   if(!window.jsQR)return null;
   for(const max of sizes){
     const k=Math.min(1,max/Math.max(w,h)),W=Math.round(w*k),H=Math.round(h*k),pad=Math.round(Math.max(W,H)*0.08);
@@ -322,7 +324,7 @@ async function decodeSource(src,w,h,sizes){
 function gotQR(t){stop();if(looksUrl(t)||/^https?:/i.test(t))run(t,"qr");else{show("check");toast("This QR code has no web link: "+t.slice(0,40))}}
 async function startScan(){
   try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});vid.srcObject=stream;await vid.play();$("#sheet").classList.add("on");tick()}
-  catch{stream=null;$("#sheet").classList.add("on");toast("Camera not available. Upload a photo of the QR code instead.")}
+  catch(e){stream=null;$("#sheet").classList.add("on");toast("Camera not available. Upload a photo of the QR code instead.")}
 }
 async function tick(){
   if(!stream)return;
@@ -341,5 +343,6 @@ $("#file").onchange=e=>{
   img.onerror=()=>toast("Couldn’t open that image.");
   img.src=URL.createObjectURL(f);e.target.value="";
 };
+</script>
 </body>
 </html>
